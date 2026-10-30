@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>dsh-macos-quicklook · promo</title>
+<style>
+:root{ --ground:#f6f4ee; --deep:#eae5d9; --card:#ffffff; --line:#ded8cb; --mute:#8b8578;
+       --ink:#141433; --accent:#ffd84a; --accent2:#ff8a52; --display:'Archivo'; --text:'Inter'; --mono:'Geist Mono';
+       --onblue:var(--ink); --onblue-dim:var(--mute); }
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:var(--ground)}
+body{font-family:var(--text),'Hiragino Sans GB','PingFang SC',system-ui,sans-serif;color:var(--onblue);
+     -webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11"}
+#stage{position:absolute;inset:0;overflow:hidden;background:var(--ground)}
+.abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+.spacebox{display:block;width:38px;height:17px;border:2.6px solid currentColor;border-radius:4px}
+#dots{position:absolute;inset:-80px;will-change:transform;
+  background-image:radial-gradient(circle, rgba(23,22,27,.12) 1.7px, transparent 1.7px);background-size:38px 38px}
+
+/* ── S1 三行字 ── */
+#words{position:absolute;left:0;right:0;top:398px;text-align:center}
+#words .ln{display:block;font-size:54px;font-weight:500;letter-spacing:-.02em;line-height:1.55;white-space:nowrap}
+#words .ln span{display:inline-block;margin:0 .1em;will-change:transform,opacity}
+#words .ln b{color:var(--accent2);font-weight:600}
+#words .ln i{color:var(--onblue-dim);font-style:normal}
+#words .ln.native{color:var(--accent);font-weight:600;margin-top:.10em}
+
+/* ── S2 键盘（局部）→ 推近到空格键 ── */
+#kb{position:absolute;left:0;top:0;width:900px;transform-origin:0 0;opacity:0;will-change:transform,opacity}
+.krow{display:flex;gap:8px;margin-bottom:8px}
+.key{flex:1;height:62px;border-radius:10px;background:var(--card);color:#6d675d;
+  box-shadow:0 3px 0 var(--line),0 6px 12px -8px rgba(23,22,27,.30);
+  display:flex;align-items:center;justify-content:center;font:500 15px/1 var(--mono);letter-spacing:.02em}
+.key.w1{flex:1.6}
+.key.w2{flex:1.25}
+.key.blank{background:transparent;box-shadow:none}
+#spacekey{flex:6}
+#ripple{position:absolute;left:0;top:0;border-radius:999px;border:3px solid var(--accent);will-change:transform,opacity}
+
+/* ── S3 卡片 / S4 面板（同一个盒子 morph 过去）── */
+#box{position:absolute;left:0;top:0;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 44px 88px -30px rgba(8,12,64,.5),0 3px 10px rgba(8,12,64,.14);color:var(--ink);
+  will-change:transform,opacity;overflow:hidden;transform-origin:0 0}
+/* 卡片视图 */
+#cardv{position:absolute;inset:0;padding:0 26px 0 22px;display:flex;align-items:center;gap:18px}
+#cardv .ico{width:58px;height:58px;border-radius:14px;background:var(--accent);flex:none;position:relative}
+#cardv .ico:after{background-image:linear-gradient(#c2c8dc 0 0),linear-gradient(#c2c8dc 0 0),linear-gradient(#c2c8dc 0 0)}
+#cardv .ico:after{content:"";position:absolute;left:15px;top:12px;width:28px;height:34px;border-radius:3px;
+  background:#fff;opacity:.96;
+  background-image:linear-gradient(#b9c2ff 0 0),linear-gradient(#b9c2ff 0 0),linear-gradient(#b9c2ff 0 0);
+  background-size:16px 2.4px,16px 2.4px,11px 2.4px;background-position:6px 9px,6px 15px,6px 21px;
+  background-repeat:no-repeat}
+#cardv .name{font-size:25px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+#cardv .meta{font-family:var(--mono);font-size:17px;color:var(--mute);margin-top:5px;white-space:nowrap}
+#cardv .dotbtn{margin-left:auto;width:54px;height:54px;border-radius:15px;background:#f0efe9;
+  display:flex;align-items:center;justify-content:center;flex:none;position:relative;
+  box-shadow:inset 0 0 0 1px var(--line);will-change:transform,opacity}
+#cardv .dotbtn .spacebox{width:24px;height:11px;border-width:2.2px;border-color:#8d94c4;opacity:1}
+#cardv .ring{position:absolute;right:20px;top:50%;margin-top:-34px;width:68px;height:68px;border-radius:19px;
+  border:2.5px solid var(--accent2);opacity:0;will-change:transform,opacity}
+/* 面板视图 */
+#panelv{position:absolute;inset:0;opacity:0}
+#panelv .bar{position:absolute;left:0;right:0;top:0;height:56px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;padding:0 26px;gap:12px;background:var(--card)}
+#panelv .bar i{width:11px;height:11px;border-radius:50%;background:#d5daf2}
+#panelv .bar .fname{font-family:var(--mono);font-size:17px;color:var(--mute);margin-left:8px}
+#panelv .bar .pg{margin-left:auto;font-family:var(--mono);font-size:16px;color:var(--mute)}
+#panelv .page{position:absolute;left:56px;right:56px;top:100px;bottom:44px}
+#panelv h3{font-family:var(--display);font-size:44px;font-weight:600;letter-spacing:-.03em;margin:0 0 10px}
+#panelv .sub{font-family:var(--mono);font-size:16px;color:var(--mute);letter-spacing:.04em;margin-bottom:26px}
+#panelv p{font-size:20px;line-height:1.72;color:#4a4a63;margin:0 0 14px;max-width:660px}
+#panelv .grid{margin-top:22px;border-top:1px solid var(--line)}
+#panelv .row{display:flex;align-items:center;gap:20px;height:46px;border-bottom:1px solid var(--line);font-size:19px;color:#3c3c58}
+#panelv .row b{font-family:var(--mono);font-weight:400;width:120px;color:var(--accent2);font-size:17px}
+
+/* ── S5 三连 ── */
+#tags{position:absolute;left:0;right:0;top:912px;text-align:center}
+#tags div{position:absolute;left:0;right:0;font-size:44px;font-weight:600;letter-spacing:-.02em;opacity:0;
+  will-change:transform,opacity}
+#tags em{font-style:normal;color:var(--accent)}
+#tags .mono{font-family:var(--mono);font-size:40px;color:var(--accent2)}
+
+/* ── S6 焦点回位 ── */
+#focus{position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;background:var(--accent2);
+  will-change:transform,opacity}
+
+/* ── S7 字标 + 命令 ── */
+#mark{position:absolute;left:0;right:0;top:436px;text-align:center;white-space:nowrap;
+  font-family:var(--display);font-size:104px;font-weight:800;letter-spacing:-.045em;color:var(--onblue)}
+#mark span{display:inline-block;will-change:transform,opacity}
+#mark .accent{color:var(--accent)}
+#cmd{position:absolute;left:0;right:0;top:606px;text-align:center;font-family:var(--mono);
+  font-size:25px;color:var(--onblue-dim);white-space:nowrap}
+#cmd b{color:var(--onblue);font-weight:400}
+#hint{position:absolute;left:0;right:0;top:694px;text-align:center;font-size:26px;color:var(--onblue-dim);
+  letter-spacing:.02em;white-space:nowrap}
+
+#cursor{position:absolute;left:0;top:0;width:34px;height:44px;will-change:transform;
+  filter:drop-shadow(0 3px 7px rgba(23,22,27,.28))}
+#hud{position:absolute;right:16px;bottom:12px;font:13px var(--mono);color:#c00;display:none}
+/* 设置页那一行（示意，不是 DSH 真实设置页截图） */
+#set{position:absolute;left:600px;top:356px;width:720px;height:338px;border-radius:22px;
+  background:var(--card);border:1px solid var(--line);color:var(--ink);opacity:0;display:none;
+  box-shadow:0 40px 80px -30px rgba(8,12,64,.42),0 3px 10px rgba(8,12,64,.12);
+  padding:28px 34px 22px;box-sizing:border-box;will-change:transform,opacity}
+#set .hdr{font-size:20px;letter-spacing:.02em;color:var(--mute);margin-bottom:10px}
+#set .row{display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:13px 0;border-top:1px solid var(--line);font-size:25px;opacity:0;will-change:transform,opacity}
+#set .row:nth-of-type(1){border-top:0}
+#set .ctl{font-family:var(--mono);font-size:21px;color:var(--accent);letter-spacing:.01em}
+#set .sw{width:54px;height:32px;border-radius:16px;background:var(--accent);position:relative;flex:none}
+#set .sw:after{content:"";position:absolute;right:3px;top:3px;width:26px;height:26px;border-radius:13px;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+#set .sw.off{background:var(--line)}
+#set .sw.off:after{right:25px}
+#set .foot{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:18px;
+  color:var(--mute);opacity:0}
+
+
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="dots"></div>
+
+  <div id="words">
+    <span class="ln" id="w1"></span>
+    <span class="ln" id="w2"></span>
+    <span class="ln" id="w3"></span>
+    <span class="ln native" id="w4"></span>
+  </div>
+
+  <div id="kb">
+    <div class="krow">
+      <div class="key">esc</div><div class="key">F1</div><div class="key">F2</div><div class="key">F3</div><div class="key">F4</div><div class="key">F5</div><div class="key">F6</div><div class="key">F7</div><div class="key">F8</div><div class="key">F9</div><div class="key">F10</div><div class="key">F11</div><div class="key">F12</div>
+    </div>
+    <div class="krow">
+      <div class="key">\`</div><div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key">0</div><div class="key">-</div><div class="key">=</div><div class="key w2">delete</div>
+    </div>
+    <div class="krow">
+      <div class="key">Q</div><div class="key">W</div><div class="key">E</div><div class="key">R</div><div class="key">T</div><div class="key">Y</div><div class="key">U</div><div class="key">I</div><div class="key">O</div><div class="key">P</div>
+    </div>
+    <div class="krow">
+      <div class="key w1">caps</div><div class="key">A</div><div class="key">S</div><div class="key">D</div><div class="key">F</div><div class="key">G</div><div class="key">H</div><div class="key">J</div><div class="key">K</div><div class="key">L</div><div class="key w1">return</div>
+    </div>
+    <div class="krow">
+      <div class="key w1">shift</div><div class="key">Z</div><div class="key">X</div><div class="key">C</div><div class="key">V</div><div class="key">B</div><div class="key">N</div><div class="key">M</div><div class="key">,</div><div class="key">.</div><div class="key w1">shift</div>
+    </div>
+    <div class="krow">
+      <div class="key">fn</div><div class="key">ctrl</div><div class="key">opt</div><div class="key w2">cmd</div><div class="key" id="spacekey"></div><div class="key w2">cmd</div><div class="key">opt</div><div class="key">←</div><div class="key">↑</div><div class="key">↓</div><div class="key">→</div>
+    </div>
+  </div>
+  <div id="ripple"></div>
+
+  <div id="box">
+    <div id="cardv">
+      <div class="ico"></div>
+      <div>
+        <div class="name">项目周报.docx</div>
+        <div class="meta">1.2 MB · 文档</div>
+      </div>
+      <div class="dotbtn"><span class="spacebox"></span></div>
+      <div class="ring" id="ring"></div>
+    </div>
+    <div id="panelv">
+      <div class="bar"><i></i><i></i><i></i><div class="fname">项目周报.docx</div><div class="pg" id="pg">1 / 8</div></div>
+      <div class="page">
+        <h3>项目周报</h3>
+        <div class="sub">WEEKLY · 第 42 周</div>
+        <p>本周只做了一件事：把交付流程里最容易卡住的三处理清楚 —— 文件在哪、谁在等、下一步是谁做。</p>
+        <p>周会只过这三件事，过完就散；每一条都落到具体的人和时间上，不留「再看看」。</p>
+        <div class="grid">
+          <div class="row"><b>10.21</b>需求对齐</div>
+          <div class="row"><b>10.24</b>稿件回收</div>
+          <div class="row"><b>10.25</b>周报归档</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tags">
+    <div id="t1"><em>docx</em> xlsx pptx pdf</div>
+    <div id="t2">从卡片位置 <em>放大</em></div>
+    <div id="t3" class="mono">Esc · 再按一次空格</div>
+  </div>
+
+  <div id="set">
+    <div class="hdr">设置 · 常规</div>
+    <div class="row" id="sr1"><span>悬停接管焦点</span><span class="ctl">500 ms</span></div>
+    <div class="row" id="sr2"><span>关闭后聚焦输入框</span><span class="sw" id="sw2"></span></div>
+    <div class="row" id="sr3"><span>双击卡片直接预览</span><span class="sw off" id="sw3"></span></div>
+    <div class="foot">悬停 0.5 秒接管焦点 · 关闭后光标回输入框</div>
+  </div>
+
+  <div id="focus"></div>
+
+  <div id="mark"></div>
+  <div id="cmd"></div>
+  
+  <div class="bub" id="b2"></div>
+  <div class="bub" id="b3"></div>
+</div>
+<div id="hint">鼠标停在交付卡片上，按一次空格</div>
+
+  <svg id="cursor" viewBox="0 0 34 44"><path d="M4 3 L30 22 L18 24 L26 40 L20 43 L12 27 L4 36 Z"
+    fill="#17161b" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></svg>
+  <div id="hud"></div>
+</div>
+
+<script src="motion.js"></script>
+<script src="look.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// dsh-macos-quicklook · 30 s 说明片（配乐 80 bpm，一拍 0.75 s）。一切是 t 的纯函数（onetake 契约）。
+// 结构：S1 痛点 → S2 空格键 → S3 涟漪成卡片 → S4 面板长出（hold）→
+//       S5 三连 → S6 收回 + 焦点回位 → S7 字标 → S8 收尾提示
+// carry：␣ 符号贯穿；卡片矩形 → 面板矩形 → 收回成卡片 → 收成字标下的一条线；
+//        指针一条连续路径；背景点阵全程漂移。
+// ═══════════════════════════════════════════════════════════════════════════
+const FPS = 30, DUR = 22;
+window.__meta = { dur: DUR, fps: FPS, w: 1920, h: 1080 };
+
+const { clamp, lerp, spring: spr, ease, morphRect } = OM;
+const $ = id => document.getElementById(id);
+const seg = (a, b, t) => clamp((t - a) / Math.max(b - a, 1e-6), 0, 1);
+const io  = (t, a, b, c, d) => Math.min(seg(a, b, t), 1 - seg(c, d, t));   // 进 a→b，出 c→d
+
+// ── 时间轴 ──────────────────────────────────────────────────────────────────
+const W1 = [0.10, 0.58, 1.06, 1.62], W_OUT = 2.92;   // S1 四行逐行飞入（第 4 行点题：这就是原生预览）
+const CAP_IN = 3.05, CAP_PRESS = 4.30, RIPPLE = 4.40;  // S2 键盘出现 → 推近空格键 → 按下
+const CARD_IN = 5.20, BTN_IN = 5.72, HOVER = 6.55;     // S3 卡片从右侧飞入，␣ 按钮随即弹出
+const MORPH = 7.35, MORPH_END = 8.15, DOC_IN = 7.50;   // S4 卡片 → 面板（内容几乎同步淡入，避免中途空白）
+const TAG_T = [11.44, 11.86, 12.28], TAG_OUT = 12.62;  // S5 三连（每镜 0.42 s，退场早于收回）
+const BACK = 12.70, BACK_END = 13.50, FOCUS = 13.50;   // S6 收回 + 焦点回位
+const FLY = 13.50;                                     // S6 卡片缩成方块飞向左上
+const SET_IN = 14.20, SET_OUT = 16.40;                 // S6.5 设置：卡片飞走后升起（副歌 15.0 落在这一段）
+const MARK_IN = 16.62, CMD_IN = 18.10;                 // S7 字标逐字母
+const HINT_IN = 19.82;                                 // S8（打字结束后留 0.25s）
+
+// ── 几何（1920×1080）─────────────────────────────────────────────────────────
+const CARD = { x: 680, y: 476, w: 560, h: 132, r: 20 };
+const PANEL= { x: 520, y: 236, w: 880, h: 608, r: 20 };
+const CC   = { x: 960, y: 540 };   // 推近后空格键的中心 = 涟漪中心 = 卡片中心
+
+// 键盘：整块淡入后朝空格键推近，让"按的是空格键"这件事一眼看懂。
+// 空格键在键盘里的相对位置量一次就够（布局是静态的）。
+const KBX = (1920 - 900) / 2, KBY = 334;
+let ZOOM = { s: 2, tx: 0, ty: 0 };
+const measureKeyboard = () => {
+  const a = kb.getBoundingClientRect(), b = spaceEl.getBoundingClientRect();
+  const sw = b.width || 1;
+  const cx = b.x - a.x + b.width / 2, cy = b.y - a.y + b.height / 2;
+  const s = 1180 / sw;                      // 空格键推到 1180 宽：真正的特写，画面里主要就是它
+  ZOOM = { s, tx: CC.x - KBX - cx * s, ty: CC.y - KBY - cy * s };
+};
+
+// ── DOM ────────────────────────────────────────────────────────────────────
+const kb = $('kb'), spaceEl = $('spacekey'), ripple = $('ripple'), box = $('box'), cardv = $('cardv'),
+      panelv = $('panelv'), ring = $('ring'), cursor = $('cursor'), focus = $('focus'),
+      dots = $('dots'), tags = [$('t1'), $('t2'), $('t3')];
+
+// S1 三行：每行按词拆 span
+const LINES = [
+  ['交付卡片里躺着一个', '<b>.docx</b>'],
+  ['DSH 只能预览', '<i>PDF 和代码</i>'],
+  ['你只好先打开', '<i>别的 App</i>'],
+  ['现在它有了 macOS 原生预览'],
+];
+const DX = [0, -46, 46, 0], DY = [30, 14, 14, 18];   // 前三行从下/左/右进场，第四行点题
+const wordEls = LINES.map((parts, i) => {
+  const host = $('w' + (i + 1));
+  return parts.map(p => {
+    const s = document.createElement('span');
+    s.innerHTML = p;
+    host.appendChild(s);
+    return s;
+  });
+});
+
+// S7 字标逐字母
+const markEl = $('mark');
+const MARK = 'dsh-macos-quicklook'.split('').map((ch, i) => {
+  const s = document.createElement('span');
+  s.textContent = ch;
+  if (ch === '␣') s.className = 'accent';
+  markEl.appendChild(s);
+  return s;
+});
+const CMD = 'dsh plugin install link:~/Apps/dsh-macos-quicklook';
+$('cmd').innerHTML = '<b id="cmdtxt"></b><span id="caret"> </span>';
+const cmdtxt = $('cmdtxt'), caret = $('caret');
+
+const setEl = document.getElementById('set');
+const setRows = ['sr1', 'sr2', 'sr3'].map(id => document.getElementById(id));
+const setFoot = setEl.querySelector('.foot');
+const panelRows = [...panelv.querySelectorAll('.row')];
+const pgEl = document.getElementById('pg');
+
+// ── 指针路径（一条 spline，贯穿全片）─────────────────────────────────────────
+const HAND = [
+  { t: 3.05, x: 1760, y: 1140 },
+  { t: 4.10, x: CC.x + 34, y: CC.y + 30 },
+  { t: 4.70, x: CC.x + 30, y: CC.y + 34 },
+  { t: 5.50, x: CARD.x + CARD.w - 58, y: CARD.y + CARD.h / 2 + 26 },
+  { t: 6.90, x: CARD.x + CARD.w - 58, y: CARD.y + CARD.h / 2 + 26 },
+  { t: 8.10, x: 1650, y: 930 },
+  { t: 8.30, x: 1640, y: 926 },
+  { t: 12.60, x: 1640, y: 926 },      // hold 段指针完全不动
+  { t: 14.20, x: 1600, y: 890 },
+  { t: 20.00, x: 1700, y: 1010 },
+];
+// smoothstep 时间权重插值（pointer 只有一条曲线，不另起 spring）
+function handAt(t) {
+  if (t <= HAND[0].t) return { x: HAND[0].x, y: HAND[0].y };
+  for (let i = 0; i < HAND.length - 1; i++) {
+    const a = HAND[i], b = HAND[i + 1];
+    if (t <= b.t) {
+      const k = ease.smoother(seg(a.t, b.t, t));
+      return { x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k) };
+    }
+  }
+  const z = HAND[HAND.length - 1];
+  return { x: z.x, y: z.y };
+}
+
+function place(el, r, op = 1, rot = 0, extra = '') {
+  el.style.transform = `translate(${r.x}px,${r.y}px) rotate(${rot}deg)`;
+  el.style.width = r.w + 'px';
+  el.style.height = r.h + 'px';
+  el.style.borderRadius = r.r + 'px';
+  el.style.opacity = op;
+  el.style.display = op <= 0.001 ? 'none' : 'block';
+  if (extra) el.style.cssText += extra;
+}
+
+// ── seek ───────────────────────────────────────────────────────────────────
+function seek(t) {
+  // 背景点阵：全程缓慢漂移 + 呼吸（元素一直在动）
+  // 点阵曾经持续漂移（sin 摆动 ±16px + 每秒下滑 5.2px）。它在文字背后滑动，
+  // 肉眼看就是"画面/文字在浮动"，比任何单个元素的动画都显眼。现在完全静止：
+  // 画面里所有的动都来自有明确起止的出入场动画，没有无限循环的位移。
+  dots.style.transform = 'translate(0px,0px)';
+
+  // ── S1 三行字 ──
+  const wOut = seg(W_OUT, W_OUT + 0.30, t);   // 退场带 -18px 位移，退出有方向才有节拍
+  const wOp = 1 - wOut;
+  LINES.forEach((_, i) => {
+    const t0 = W1[i];
+    wordEls[i].forEach((el, j) => {
+      const k = ease.expoOut(seg(t0 + j * 0.07, t0 + j * 0.07 + 0.55, t));
+      el.style.opacity = k * wOp;
+      el.style.transform = `translate(${(1 - k) * DX[i]}px, ${(1 - k) * DY[i] - wOut * 18}px)`;
+      el.style.letterSpacing = '-0.02em';
+    });
+  });
+
+  // ── S2 键帽 ──
+  // 整块键盘先出现，然后朝空格键推近——先给"这是键盘"，再给"按空格"，因果才清楚
+  const kbIn = clamp(spr(t - CAP_IN, 0.60, 15), 0, 1);
+  const kbOut = seg(CARD_IN - 0.34, CARD_IN - 0.06, t);
+  const kbOp = kbIn * (1 - kbOut);
+  // 先让键盘完全显形，再开始推近：半透明和缩放叠在一起会让键帽边缘出条纹
+  const zk = ease.cubicOut(seg(CAP_IN + 0.55, CAP_IN + 1.20, t));
+  const zs = lerp(1, ZOOM.s, zk);
+  const zx = lerp(0, ZOOM.tx, zk);
+  const zy = lerp(0, ZOOM.ty, zk) + (1 - kbIn) * 44;
+  kb.style.opacity = kbOp;
+  kb.style.display = kbOp <= 0.001 ? 'none' : 'block';
+  kb.style.transform = `translate(${KBX + zx}px,${KBY + zy}px) scale(${zs})`;
+  const press = seg(CAP_PRESS, CAP_PRESS + 0.10, t) * (1 - ease.cubicOut(seg(CAP_PRESS + 0.10, CAP_PRESS + 0.26, t)));
+  spaceEl.style.transform = `translateY(${press * 14}px)`;
+  spaceEl.style.boxShadow = `0 ${3 - press * 2.6}px 0 var(--line),0 ${6 - press * 4}px 12px -8px rgba(23,22,27,${0.30 - press * 0.22})`;
+
+  // ── S2/S3 涟漪：一次扩散把卡片"叫出来" ──
+  const rk = seg(RIPPLE, RIPPLE + 0.86, t);
+  const rOp = rk > 0 ? (1 - seg(RIPPLE + 0.42, RIPPLE + 0.72, t)) : 0;
+  const rw = lerp(120, 1040, ease.expoOut(rk));
+  ripple.style.width = rw + 'px';
+  ripple.style.height = lerp(64, 560, ease.expoOut(rk)) + 'px';
+  ripple.style.borderRadius = lerp(32, 360, ease.expoOut(rk)) + 'px';
+  ripple.style.transform = `translate(${CC.x - rw / 2}px, ${CC.y - lerp(64, 560, ease.expoOut(rk)) / 2}px)`;
+  ripple.style.opacity = rOp * 0.85;
+  ripple.style.display = rOp <= 0.001 ? 'none' : 'block';
+
+  // ── S3/S4/S6 box：卡片 ⇄ 面板（同一个盒子 morph）─────────────────────────
+  let rect, cardOp = 1, panelOp = 0, boxRot = 0;
+  if (t < MORPH) {
+    // 卡片从屏幕右侧带一点角度飞进来，落位后停住（出入场，不是无限循环）
+    const k = ease.expoOut(seg(CARD_IN, CARD_IN + 0.72, t));
+    rect = { ...CARD };
+    rect.x = CARD.x + (1 - k) * 660;
+    rect.y = CARD.y + (1 - k) * -64;
+    boxRot = (1 - k) * -8;   // 只做位移+旋转+淡入；不要改宽高，否则卡片里的文字会被挤变形
+  } else if (t < BACK) {
+    rect = morphRect(t, MORPH, MORPH_END, CARD, PANEL, { curve: ease.expoOut });
+    const k = seg(MORPH, MORPH_END, t);
+    cardOp = 1 - seg(0.02, 0.26, k);   // 盒子一变形就立刻退掉卡片视图，否则里面的文字会被横向拉长
+    panelOp = seg(DOC_IN - MORPH, DOC_IN - MORPH + 0.34, t - MORPH);
+  } else if (t < BACK_END) {
+    rect = morphRect(t, BACK, BACK_END, PANEL, CARD, { curve: ease.expoInOut });
+    const k = seg(BACK, BACK_END, t);
+    cardOp = seg(0.48, 0.92, k);
+    panelOp = 1 - seg(0.03, 0.60, k);
+  } else {
+    // 收起变成卡片之后不留在原地：缩成一个小方块、带角度甩向左上，给字标让位
+    const k = ease.expoIn(seg(FLY, FLY + 0.66, t));
+    rect = { x: lerp(CARD.x, 438, k), y: lerp(CARD.y, 452, k),
+             w: lerp(CARD.w, 96, k), h: lerp(CARD.h, 36, k), r: lerp(CARD.r, 8, k) };
+    boxRot = -18 * k;
+  }
+  const boxIn = spr(t - CARD_IN, 0.72, 16);
+  const boxOut = 1 - seg(FLY + 0.52, FLY + 0.80, t);  // 等飞行动作走完再退，给设置卡让位
+  const boxOp = clamp(boxIn, 0, 1) * boxOut;
+  box.style.opacity = boxOp;
+  box.style.display = boxOp <= 0.001 ? 'none' : 'block';
+  // 这里曾经给面板加过 +-5.5px 的正弦上下浮动（周期 7.4s），本意是让 hold 段"有呼吸"。
+  // 但面板里全是文档文字，整块上下飘会被读成"文字在浮动"，而且 7.9s 的 hold 段正好走了将近
+  // 一个完整周期，晃得最明显。文档要读的时候必须稳，所以 hold 段完全静止；
+  // 流动感交给背景点阵的缓慢平移和指针。
+  box.style.transform = `translate(${rect.x}px,${rect.y}px) rotate(${boxRot}deg)`;
+  box.style.width = rect.w + 'px';
+  box.style.height = rect.h + 'px';
+  box.style.borderRadius = rect.r + 'px';
+  cardv.style.opacity = cardOp;
+  panelv.style.opacity = panelOp * (t < BACK ? 1 : 1);
+
+  // ␣ 按钮 + 一圈高亮：S3 出现，S4 前被"按下"一次
+  const btnK = spr(t - BTN_IN, 0.6, 17);
+  const ringK = seg(HOVER, HOVER + 0.5, t) * (1 - seg(MORPH - 0.1, MORPH + 0.2, t));
+  const btnEl = cardv.querySelector('.dotbtn');
+  btnEl.style.transform = `scale(${clamp(btnK, 0, 1.18) * (1 - 0.10 * seg(HOVER, HOVER + 0.12, t) * (1 - seg(HOVER + 0.12, HOVER + 0.30, t)))})`;
+  btnEl.style.opacity = cardOp;
+  ring.style.opacity = ringK * 0.9;
+  ring.style.transform = `scale(${1 + ringK * 0.12})`;
+  ring.style.display = ringK <= 0.001 ? 'none' : 'block';
+
+  // ── 面板内的一次性事件：三条列表依次点亮 + 页码翻一页（让 hold 段有呼吸的节拍）──
+  if (panelRows.length) {
+    panelRows.forEach((row, i) => {
+      const t0 = 9.55 + i * 0.40;
+      const lit = io(t, t0, t0 + 0.03, t0 + 0.16, t0 + 0.30);
+      row.style.background = `linear-gradient(90deg, rgba(47,75,240,${lit * 0.10}), transparent 46%)`;
+    });
+  }
+  if (pgEl) pgEl.textContent = t > 10.70 ? '2 / 8' : '1 / 8';
+
+  // ── S6.5 设置：面板收起、卡片飞走之后，设置页里那一行升起来 ──
+  const setOp = io(t, SET_IN + 0.10, SET_IN + 0.44, SET_OUT, SET_OUT + 0.26);
+  setEl.style.display = setOp <= 0.001 ? 'none' : 'block';
+  setEl.style.opacity = setOp;
+  setEl.style.transform = `translateY(${(1 - ease.cubicOut(seg(SET_IN + 0.10, SET_IN + 0.60, t))) * 26}px)`;
+  setRows.forEach((el, i) => {
+    // 三行依次落位；退场时一起淡掉，不要逐行退（会读成抖动）
+    const k = seg(SET_IN + 0.22 + i * 0.15, SET_IN + 0.48 + i * 0.15, t) * (1 - seg(SET_OUT - 0.12, SET_OUT, t));
+    el.style.opacity = k;
+    el.style.transform = `translateY(${(1 - k) * 10}px)`;
+  });
+  setFoot.style.opacity = seg(SET_IN + 0.72, SET_IN + 0.98, t) * (1 - seg(SET_OUT - 0.12, SET_OUT, t));
+
+  // ── S5 三连：三次硬切，每次 0.34 s ──
+  const TAG_DX = [-78, 0, 78];   // 三行说明分别从左 / 中 / 右滑进来
+  const tagOff = seg(TAG_OUT, TAG_OUT + 0.22, t);
+  tags.forEach((el, i) => {
+    const on = seg(TAG_T[i], TAG_T[i] + 0.09, t);
+    const off = i < 2 ? seg(TAG_T[i + 1] - 0.09, TAG_T[i + 1] + 0.01, t) : tagOff;   // 上行先走，下一行才进
+    const op = clamp(on - off, 0, 1);
+    el.style.opacity = op;
+    el.style.display = op <= 0.001 ? 'none' : 'block';
+    const k = ease.expoOut(clamp(on, 0, 1));
+    const outK = i < 2 ? seg(TAG_T[i + 1] - 0.09, TAG_T[i + 1] + 0.01, t) : tagOff;
+    el.style.transform = `translate(${(1 - k) * TAG_DX[i]}px, ${(1 - k) * 22 - outK * 20}px)`;
+  });
+
+  // ── S6 焦点回位：一颗橙点从面板飘回左上 ──
+  const fk = seg(FOCUS, FOCUS + 0.72, t);
+  const fOp = io(t, FOCUS, FOCUS + 0.12, FOCUS + 0.62, FOCUS + 0.86);
+  focus.style.opacity = fOp;
+  focus.style.display = fOp <= 0.001 ? 'none' : 'block';
+  focus.style.transform = `translate(${lerp(920, 108, ease.smoother(fk))}px, ${lerp(540, 116, ease.smoother(fk))}px) scale(${lerp(1, 0.55, fk)})`;
+
+  // ── S7 字标逐字母 ──
+  MARK.forEach((el, i) => {
+    const k = spr(t - (MARK_IN + i * 0.028), 0.62, 18);
+    el.style.opacity = clamp(k, 0, 1);
+    el.style.transform = `translateY(${(1 - clamp(k, 0, 1)) * 46}px)`;
+  });
+
+  // ── S7 命令打字机 ──
+  const typed = Math.floor(clamp((t - CMD_IN) * 34, 0, CMD.length));
+  cmdtxt.textContent = CMD.slice(0, typed);
+  caret.style.opacity = typed > 0 && typed < CMD.length || Math.floor(t * 3) % 2 === 0 ? 1 : 0;
+  $('cmd').style.opacity = seg(CMD_IN - 0.15, CMD_IN + 0.1, t);
+
+  // ── S8 提示 ──
+  const hIn = ease.expoOut(seg(HINT_IN, HINT_IN + 0.7, t));
+  $('hint').style.opacity = hIn * 0.95;
+  $('hint').style.transform = `translateY(${(1 - hIn) * 18}px)`;
+
+
+  // ── 指针 ──
+  const h = handAt(t);
+  const hOp = io(t, CAP_IN - 0.25, CAP_IN, FOCUS + 0.30, FOCUS + 0.60);
+  cursor.style.opacity = hOp;
+  cursor.style.display = hOp <= 0.001 ? 'none' : 'block';
+  cursor.style.transform = `translate(${h.x}px,${h.y}px)`;
+}
+
+// ── 契约 ───────────────────────────────────────────────────────────────────
+window.__seek = async t => { seek(t); return true; };
+window.__ready = (window.LOOK ? LOOK.ready : Promise.resolve()).then(() => { measureKeyboard(); seek(0); });
+
+const q = new URLSearchParams(location.search);
+if (q.has('t')) window.__ready.then(() => seek(parseFloat(q.get('t'))));
+if (q.has('hud')) $('hud').style.display = 'block';
+if (q.has('play')) window.__ready.then(() => {
+  const t0 = performance.now();
+  (function loop() { seek(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })();
+});
+</script>
+</body>
+</html>

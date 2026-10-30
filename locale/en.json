@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Quick Look Preview",
+    "description": "Hover the preview button on a delivered file and press Space to open it in the native macOS Quick Look panel"
+  }
+}

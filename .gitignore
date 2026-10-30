@@ -1,0 +1,28 @@
+.DS_Store
+node_modules/
+
+# helper 的编译产物：源码在，用户自己 swiftc 编译
+helper/qlhelper
+
+# 说明片的中间产物，本地留着但不入库
+promo/out/
+promo/_frames/
+promo/draft*
+promo/*.render.json
+promo/dsh-macos-quicklook-20s.mp4
+promo/dsh-macos-quicklook-30s-studio.mp4
+promo/music-20s.m4a
+promo/music-30s.m4a
+promo/f[0-9]*.png
+promo/frame_*.png
+promo/stills/*_big.png
+promo/stills/kb*.png
+promo/stills/s20_*.png
+promo/stills/final_*.png
+promo/stills/chk*.png
+promo/stills/sheet*.png
+promo/stills/studio_*.png
+promo/stills/morph*.png
+promo/stills/video-check.png
+promo/stills/set_*.png
+promo/stills/w_*.png

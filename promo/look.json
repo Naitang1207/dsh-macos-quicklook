@@ -1,0 +1,32 @@
+{
+  "name": "studio",
+  "from": "dsh-macos-quicklook",
+  "mood": "a warm paper field, near-black type, one electric blue and one orange — studio, not dashboard",
+  "color": {
+    "ground": "#f6f4ee",
+    "deep": "#eae5d9",
+    "card": "#ffffff",
+    "line": "#ded8cb",
+    "mute": "#8b8578",
+    "ink": "#17161b",
+    "accent": "#2f4bf0",
+    "accent2": "#ff6b35"
+  },
+  "type": {
+    "display": {
+      "face": "Archivo",
+      "weight": 800,
+      "tracking": -0.02
+    },
+    "text": {
+      "face": "Inter",
+      "weight": 500,
+      "tracking": -0.01
+    },
+    "mono": {
+      "face": "Geist Mono",
+      "weight": 500,
+      "tracking": 0.02
+    }
+  }
+}

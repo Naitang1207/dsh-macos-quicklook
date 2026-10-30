@@ -1,0 +1,34 @@
+{
+  "name": "@naitang1207/dsh-macos-quicklook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "在交付卡片上按空格，用 macOS 原生 Quick Look 预览文件",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "helper/qlhelper",
+    "helper/main.swift"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-deliverables"
+      ]
+    }
+  }
+}
