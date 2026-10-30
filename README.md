@@ -8,9 +8,11 @@
 
 
 
-▶ **[在浏览器里播放](https://naitang1207.github.io/dsh-macos-quicklook/)** · 也可以直接下载：[`dsh-macos-quicklook-22s.mp4`](https://github.com/Naitang1207/dsh-macos-quicklook/releases/download/v0.1.0/dsh-macos-quicklook-22s.mp4)
+![22 秒演示](promo/dsh-macos-quicklook-22s.gif)
 
-![预览面板](promo/stills/05-s4-panel.png)
+上面的 GIF 是 1000px / 15fps 的有损压缩版；想看原片可以
+[在浏览器里播放](https://naitang1207.github.io/dsh-macos-quicklook/) 或
+[下载 mp4（3 MB）](https://github.com/Naitang1207/dsh-macos-quicklook/releases/download/v0.1.0/dsh-macos-quicklook-22s.mp4)。
 
 ## 为什么需要它
 
