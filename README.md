@@ -6,7 +6,9 @@
 
 22 秒，纯代码渲染（每帧由 HTML 截图生成，不是录屏）。
 
-▶ **[下载或播放 `dsh-macos-quicklook-22s.mp4`（4 MB）](https://github.com/Naitang1207/dsh-macos-quicklook/releases/download/v0.1.0/dsh-macos-quicklook-22s.mp4)**，也可以从仓库里取：[`promo/dsh-macos-quicklook-22s.mp4`](promo/dsh-macos-quicklook-22s.mp4)
+<video src="promo/dsh-macos-quicklook-22s.mp4" controls muted playsinline width="880"></video>
+
+4 MB，也可以直接下载：[`dsh-macos-quicklook-22s.mp4`](https://github.com/Naitang1207/dsh-macos-quicklook/releases/download/v0.1.0/dsh-macos-quicklook-22s.mp4)
 
 ![预览面板](promo/stills/05-s4-panel.png)
 
