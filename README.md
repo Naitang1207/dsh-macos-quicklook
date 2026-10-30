@@ -4,15 +4,13 @@
 
 ## 演示片
 
-22 秒，纯代码渲染（每帧由 HTML 截图生成，不是录屏）。
+![按空格预览](promo/dsh-macos-quicklook-spacekey.gif)
 
+上面这段是「键盘 → 推近空格键 → 按下 → 预览面板升起」的原始节奏（4.7 秒）。
 
-
-![22 秒演示](promo/dsh-macos-quicklook-22s.gif)
-
-上面的 GIF 是 1000px / 15fps 的有损压缩版；想看原片可以
-[在浏览器里播放](https://naitang1207.github.io/dsh-macos-quicklook/) 或
+完整 22 秒全片：[在浏览器里播放](https://naitang1207.github.io/dsh-macos-quicklook/) ·
 [下载 mp4（3 MB）](https://github.com/Naitang1207/dsh-macos-quicklook/releases/download/v0.1.0/dsh-macos-quicklook-22s.mp4)。
+全片是纯代码渲染，每帧由 HTML 截图生成，不是录屏。
 
 ## 为什么需要它
 
