@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>dsh-macos-quicklook · 22 秒演示</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center;
+         justify-content:center; gap:26px; padding:48px 24px; background:#f6f4ee; color:#17161b;
+         font-family:-apple-system,"PingFang SC","Hiragino Sans GB",system-ui,sans-serif; }
+  @media (prefers-color-scheme: dark) { body { background:#17161b; color:#f6f4ee; } }
+  h1 { margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em; }
+  p { margin:0; font-size:14px; opacity:.6; text-align:center; line-height:1.6; }
+  video { width:min(1100px,100%); height:auto; border-radius:14px; display:block;
+          box-shadow:0 30px 70px -30px rgba(8,12,64,.35); background:#000; }
+  a { color:#2f4bf0; text-decoration:none; font-size:13px; }
+  a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+  <h1>dsh-macos-quicklook</h1>
+  <p>鼠标停在交付卡片上按空格，用 macOS 原生 Quick Look 预览文件。</p>
+  <video src="dsh-macos-quicklook-22s.mp4" controls autoplay muted loop playsinline></video>
+  <p>22 秒 · 1920×1080 · 30fps · 纯代码渲染（每帧由 HTML 截图生成，不是录屏）</p>
+  <a href="https://github.com/Naitang1207/dsh-macos-quicklook">← 返回仓库</a>
+</body>
+</html>
