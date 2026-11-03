@@ -79,7 +79,7 @@ docx、xlsx、pptx、pages/numbers/keynote、pdf、图片、音视频、markdown
 - **换文件不播动画**：同一面板 `reloadData` 换内容，位置不动（按你的要求「干脆不做动画」）。
 - **收起后焦点自动回 DSH**：面板需要 key window（否则收不到 Esc 和触控板手势），所以打开期间
   helper 会短暂成为前台；关闭后用它记住的原前台应用 `activate()` 把焦点还回去——等价于在 Dock
-  上点一下 DSH，零轮询零开销。如果「关闭后聚焦输入框」开着，光标会进一步落到聊天输入框上
+  上点一下 DSH，零轮询零开销。若关闭期间用户主动切换到其他应用，则取消还焦点，避免抢回窗口。如果「关闭后聚焦输入框」开着，光标会进一步落到聊天输入框上
   （取页面里 `getBoundingClientRect().bottom` 最大的那个可编辑元素，不依赖宿主的 class 名）。
 
 ## 实现
@@ -140,16 +140,16 @@ icon.svg               64×64 图标
 只有改了 `helper/main.swift` 才需要重新编译（需要 Xcode 或 Swift 6）：
 
 ```bash
-cd <这个仓库>/helper && swiftc -O main.swift -o qlhelper
+cd <这个仓库>/helper
+swiftc -O -target arm64-apple-macos12.0 main.swift -o /tmp/qlhelper-arm64
+swiftc -O -target x86_64-apple-macos12.0 main.swift -o /tmp/qlhelper-x86_64
+lipo -create /tmp/qlhelper-arm64 /tmp/qlhelper-x86_64 -output qlhelper
+codesign -s - --force qlhelper
 ```
 
-```bash
-# 热重载（改代码用这个，不用退出 DSH）
-plugin_manager set_plugin target=include:quicklook enabled=false
-plugin_manager set_plugin target=include:quicklook enabled=true
-```
+更新已有安装后，以插件管理器返回的 `application` 和 `warnings` 为准：`applied` 表示已应用运行时变更；若返回 `restart-required`，再完整退出并重新启动 DSH。仅切换启用状态或确认文件已更新，不能证明新代码的实际交互已经通过验收。
 
-`set_plugin` 的 target 必须是 `include:<patchId>` 这种精确 entryId，传包名会报 unknown-plugin。
+`set_plugin` 的 target 必须使用插件管理器列出的精确 entryId，传包名会报 unknown-plugin。
 
 ## 安装 / 卸载
 

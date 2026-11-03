@@ -53,6 +53,12 @@ private final class PreviewController: NSObject, NSApplicationDelegate, QLPrevie
         host.ignoresMouseEvents = true
         host.orderFront(nil)
 
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(frontmostApplicationChanged(_:)),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
         startCommandLoop()
 
         // 预热：面板第一次 makeKeyAndOrderFront 要 ~72ms（建窗口 + 唤醒 quicklookd），
@@ -184,6 +190,7 @@ private final class PreviewController: NSObject, NSApplicationDelegate, QLPrevie
 
         // 这次打开作废任何还在跑着的收起收尾。
         hideGeneration += 1
+        focusGeneration += 1
 
         // 面板已经开着、换到另一个文件：直接把内容换掉，不做任何过渡。
         if isShowing && panel.isVisible && url != nextURL {
@@ -203,7 +210,6 @@ private final class PreviewController: NSObject, NSApplicationDelegate, QLPrevie
         // 这里刻意不让 host 抢 key：QLPreviewPanel 一旦失去 key window 就会自己收起，
         // 而 host 是 1×1 的透明窗口，之前它 makeKey 之后面板会在 ~1s 后被系统关掉
         // （日志里表现为 after1.2s visible=false）。host 只负责让 accessory app 有可见窗口。
-        focusGeneration += 1
         rememberFrontmost()
         host.orderFrontRegardless()
         mark("host.orderFront")
@@ -286,8 +292,20 @@ private final class PreviewController: NSObject, NSApplicationDelegate, QLPrevie
         let generation = focusGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { [weak self] in
             guard let self, generation == self.focusGeneration else { return }
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier else {
+                self.previousApp = nil
+                return
+            }
             self.restoreFocus()
         }
+    }
+
+    @objc private func frontmostApplicationChanged(_ notification: Notification) {
+        guard !isShowing,
+              let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        focusGeneration += 1
+        previousApp = nil
     }
 
     /// 收起后把焦点还给原应用。用 NSRunningApplication.activate()，

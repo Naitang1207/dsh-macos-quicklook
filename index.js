@@ -160,6 +160,9 @@ export function apply(ctx) {
   let helper = null
   /** helper 的 stdin；写一行 JSON 就是一条命令。 */
   let input = null
+  let disposed = false
+  let requestSequence = 0
+  let latestPreviewRequest = 0
 
   /** 说清 helper 为什么起不来，别让用户只看到一句 "not available"。 */
   function helperDiagnosis() {
@@ -174,6 +177,7 @@ export function apply(ctx) {
   }
 
   function ensureHelper() {
+    if (disposed) return null
     if (helper !== null) return helper
     let handle
     try {
@@ -249,6 +253,7 @@ export function apply(ctx) {
   }
 
   async function handlePreview(request) {
+    const sequence = ++requestSequence
     const started = Date.now()
     let seen = null
     try {
@@ -259,7 +264,7 @@ export function apply(ctx) {
     logLine(`in ${JSON.stringify(seen)}`)
     let response
     try {
-      response = await handlePreviewInner(request)
+      response = await handlePreviewInner(request, sequence)
     } catch (error) {
       // 任何没预期的异常都要落成响应，否则日志里只剩半截、排查时看不见这条请求。
       if (request.signal.aborted) return text(499, 'Cancelled.')
@@ -270,7 +275,7 @@ export function apply(ctx) {
     return response
   }
 
-  async function handlePreviewInner(request) {
+  async function handlePreviewInner(request, sequence) {
     let body
     try {
       body = await request.json()
@@ -279,9 +284,20 @@ export function apply(ctx) {
     }
     if (typeof body !== 'object' || body === null) return text(400, 'Body must be an object.')
 
-    if (body.action === 'hide') {
+    if (disposed || request.signal.aborted) return text(499, 'Cancelled.')
+    const action = body.action
+    if (action !== undefined && !['hide', 'focus', 'toggle', 'show'].includes(action)) {
+      return text(400, 'Unknown action.')
+    }
+    if (action === 'hide') {
+      if (sequence < latestPreviewRequest) return text(499, 'Superseded.')
+      latestPreviewRequest = sequence
       return json({ hidden: send({ cmd: 'hide' }) })
     }
+    if (!ctx.sessionController.workspaceDesktop().available) {
+      return text(409, 'Host desktop unavailable.')
+    }
+    if (action === 'focus') return json({ focused: send({ cmd: 'focus' }) })
 
     const sessionId = typeof body.sessionId === 'string' ? body.sessionId : ''
     const seq = coordinate(body.seq)
@@ -289,9 +305,9 @@ export function apply(ctx) {
     if (sessionId.length === 0 || seq === undefined || index === undefined) {
       return text(400, 'Invalid Quick Look coordinates.')
     }
-    if (!ctx.sessionController.workspaceDesktop().available) {
-      return text(409, 'Host desktop unavailable.')
-    }
+    const requestId = sequence
+    if (requestId < latestPreviewRequest) return text(499, 'Superseded.')
+    latestPreviewRequest = requestId
 
     let absolutePath
     try {
@@ -301,17 +317,11 @@ export function apply(ctx) {
       if (request.signal.aborted) return text(499, 'Cancelled.')
       return text(404, `Presented file unavailable: ${String(error)}`)
     }
+    if (disposed || request.signal.aborted) return text(499, 'Cancelled.')
+    if (requestId !== latestPreviewRequest) return text(499, 'Superseded.')
     if (absolutePath === undefined) return text(404, 'Presented file not found in this Session result.')
 
     // toggle 由 helper 判定：它才是唯一知道面板此刻开没开的地方。
-    // 其它拼错的动作要报错，不能静默当成"打开"，否则会把关闭请求变成打开另一个文件。
-    if (body.action !== undefined && body.action !== 'toggle' && body.action !== 'show') {
-      return text(400, 'Unknown action.')
-    }
-    if (body.action === 'focus') {
-      if (send({ cmd: 'focus' }) === false) return json({ focused: false })
-      return json({ focused: true })
-    }
     const command = body.action === 'toggle' ? 'toggle' : 'show'
     const shown = send({
       cmd: command,
@@ -354,6 +364,8 @@ export function apply(ctx) {
 
   // 插件卸载或禁用时：让 helper 自己收尾，然后兜底杀掉。
   ctx.effect(() => () => {
+    disposed = true
+    latestPreviewRequest = ++requestSequence
     if (input !== null && typeof input.write === 'function') {
       try {
         input.write(`${JSON.stringify({ cmd: 'quit' })}\n`)

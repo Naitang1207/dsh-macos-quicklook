@@ -94,7 +94,15 @@ window.__ModuleLoader__.load({
       return null
     }
 
-    let focusTimer = null
+    let focusTask = null
+    let focusingCard = null
+
+    function cancelFocus() {
+      if (focusTask === null) return
+      clearTimeout(focusTask.timer)
+      clearTimeout(focusTask.fallback)
+      focusTask = null
+    }
 
     /** 和 Host 半共用的设置。启动时拉一次，设置页改完立即回写。 */
     let settings = { hoverDelay: 500, focusComposer: true, clickToPreview: false }
@@ -173,10 +181,20 @@ window.__ModuleLoader__.load({
      * 把窗口和卡片拿回焦点，用户接着按空格即可。
      */
     function focusSoon(found) {
-      if (focusTimer !== null) clearTimeout(focusTimer)
-      focusTimer = setTimeout(() => {
-        focusTimer = null
-        if (hovered === null) return
+      cancelFocus()
+      if (typingSomewhere(document.activeElement)) return
+      const entry = hovered
+      const task = { timer: null, fallback: null, active: document.activeElement }
+      focusTask = task
+      const valid = () =>
+        focusTask === task && hovered === entry &&
+        found.button.isConnected === true && entry.element.isConnected === true &&
+        entry.element.contains(found.button) && found.button.disabled !== true &&
+        found.button.getAttribute('data-quicklook-url') === entry.url &&
+        document.activeElement === task.active && !typingSomewhere(document.activeElement)
+      task.timer = setTimeout(() => {
+        task.timer = null
+        if (!valid()) { cancelFocus(); return }
         if (document.hasFocus() === false) {
           try {
             window.focus()
@@ -184,44 +202,56 @@ window.__ModuleLoader__.load({
             warn('focus window', error)
           }
         }
+        if (!valid()) { cancelFocus(); return }
         const target = found.button
         if (typeof target?.focus === 'function' && document.activeElement !== target) {
+          focusingCard = target
           try {
             target.focus({ preventScroll: true })
           } catch (error) {
             warn('focus card', error)
+          } finally {
+            focusingCard = null
           }
+          if (document.activeElement === target) task.active = target
         }
+        if (!valid()) { cancelFocus(); return }
         // window.focus() 不一定能把整个 app 激活（系统级限制），再让 helper 用
         // NSRunningApplication 兜一次；仍然没焦点就说明是别的窗口真在前台。
         if (document.hasFocus() === false) {
-          window.setTimeout(() => {
-            if (hovered === null || document.hasFocus()) return
+          task.fallback = window.setTimeout(() => {
+            task.fallback = null
+            if (!valid() || document.hasFocus()) { cancelFocus(); return }
+            cancelFocus()
             void post({ action: 'focus' }).catch(warn)
           }, 120)
+        } else {
+          cancelFocus()
         }
       }, Math.max(0, Number(settings.hoverDelay) || 0))
     }
 
     /** 记下卡片（而不是按钮）的矩形：面板从整张卡片的位置长出来。 */
-    function remember(found) {
+    function remember(found, { scheduleFocus = true } = {}) {
       if (found === null) {
-        if (focusTimer !== null) {
-          clearTimeout(focusTimer)
-          focusTimer = null
-        }
+        cancelFocus()
         if (hovered !== null) publish(null)
         return
       }
       const url = found.button.getAttribute('data-quicklook-url')
       if (url === null || url === '') {
+        cancelFocus()
         if (hovered !== null) publish(null)
         return
       }
       const element = found.card !== null ? found.card : found.button
-      if (typeof element.getBoundingClientRect !== 'function') return
-      publish({ url, element })
-      focusSoon(found)
+      if (typeof element.getBoundingClientRect !== 'function' || element.isConnected === false || found.button.isConnected === false || !element.contains(found.button)) {
+        cancelFocus()
+        return
+      }
+      const entry = { url, element }
+      publish(entry)
+      if (scheduleFocus) focusSoon(found)
     }
 
     /** 元素此刻在视口里的矩形（CSS px）。页面滚动过之后必须现取。 */
@@ -392,7 +422,13 @@ window.__ModuleLoader__.load({
           title: unavailable ? '快速预览不可用' : '快速预览（空格）',
           'aria-label': '快速预览',
           onMouseEnter: enter,
-          onFocus: enter,
+          onFocus: () => {
+            // focusSoon 自己发起的 focus 不应重新 remember、替换当前任务。
+            if (focusingCard === ref.current) return
+            cancelFocus()
+            const found = locate(ref.current)
+            remember(found !== null ? found : { button: ref.current, card: ref.current }, { scheduleFocus: false })
+          },
           onClick: (event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -458,13 +494,29 @@ window.__ModuleLoader__.load({
         )
 
         ctx.effect(() => {
+          let outFrame = null
+          const clearOutFrame = () => {
+            if (outFrame !== null) cancelAnimationFrame(outFrame)
+            outFrame = null
+          }
+          const onFocusChange = (event) => {
+            if (focusingCard !== null && (
+              (event.type === 'focusin' && event.target === focusingCard) ||
+              (event.type === 'focusout' && event.relatedTarget === focusingCard)
+            )) return
+            cancelFocus()
+          }
           // 鼠标在整张卡片上就算"指着这个文件"：卡片的 rect 也从这里取。
           const onOver = (event) => {
+            clearOutFrame()
             const found = locate(event.target, { x: event.clientX, y: event.clientY })
             if (found === null) return
             // 同一张卡片内部的 mouseover 会连续触发，没必要每次都重算并通知组件。
             const url = found.button.getAttribute('data-quicklook-url')
-            if (url !== null && hovered !== null && hovered.url === url) return
+            if (url !== null && hovered !== null && hovered.url === url && hovered.element === (found.card || found.button)) {
+              // 保持现有悬停任务，不因卡片内部 mouseover 重置延时。
+              return
+            }
             remember(found)
           }
           // 双击整张卡片直接预览：默认关，设置里打开才生效。
@@ -482,12 +534,17 @@ window.__ModuleLoader__.load({
 
           const onOut = (event) => {
             const to = event.relatedTarget
-            if (to !== null && typeof to === 'object' && locate(to) !== null) return
+            const next = to !== null && typeof to === 'object' ? locate(to) : null
+            if (next !== null && hovered !== null && hovered.element.contains(to)) return
+            cancelFocus()
+            clearOutFrame()
+            if (next !== null) { remember(next); return }
             // relatedTarget 为 null 也可能只是卡片被 React 重建了（流式输出），鼠标其实没动。
             // 下一帧用坐标再确认一次，避免"鼠标明明在卡片上、按空格却没反应"。
             if (to === null) {
               const point = { x: event.clientX, y: event.clientY }
-              requestAnimationFrame(() => {
+              outFrame = requestAnimationFrame(() => {
+                outFrame = null
                 const under = document.elementFromPoint(point.x, point.y)
                 if (under !== null && locate(under, point) !== null) return
                 if (hovered !== null) publish(null)
@@ -498,6 +555,7 @@ window.__ModuleLoader__.load({
           }
 
           const onKeyDown = (event) => {
+            cancelFocus()
             // Esc：只在鼠标停在卡片上时兜底收起。
             // 刻意不 preventDefault/stopPropagation——Esc 是宿主自己在用的键
             // （关弹窗、取消生成），在捕获阶段抢走它会把这些功能弄哑。
@@ -526,11 +584,21 @@ window.__ModuleLoader__.load({
           window.addEventListener('focus', onWindowFocus)
           document.addEventListener('dblclick', onDoubleClick, true)
           document.addEventListener('keydown', onKeyDown, true)
+          document.addEventListener('focusin', onFocusChange, true)
+          document.addEventListener('focusout', onFocusChange, true)
+          document.addEventListener('beforeinput', cancelFocus, true)
+          document.addEventListener('input', cancelFocus, true)
           return () => {
+            cancelFocus()
+            clearOutFrame()
             document.removeEventListener('mouseover', onOver, true)
             document.removeEventListener('mouseout', onOut, true)
             document.removeEventListener('dblclick', onDoubleClick, true)
             document.removeEventListener('keydown', onKeyDown, true)
+            document.removeEventListener('focusin', onFocusChange, true)
+            document.removeEventListener('focusout', onFocusChange, true)
+            document.removeEventListener('beforeinput', cancelFocus, true)
+            document.removeEventListener('input', cancelFocus, true)
             window.removeEventListener('focus', onWindowFocus)
             hide()
             publish(null)
