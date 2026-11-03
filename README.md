@@ -135,7 +135,9 @@ icon.svg               64×64 图标
 
 ## 编译与热重载
 
-改了 `helper/main.swift` 要重新编译，再让 Host 起新进程：
+仓库里已经带了编译好的 `helper/qlhelper`（universal binary，arm64 + x86_64，macOS 12+），装完就能用，**不需要本机装 Swift 工具链**。
+
+只有改了 `helper/main.swift` 才需要重新编译（需要 Xcode 或 Swift 6）：
 
 ```bash
 cd <这个仓库>/helper && swiftc -O main.swift -o qlhelper

@@ -9,7 +9,7 @@
  * 出现动画都由我们控制；窗口是 nonactivating 且不能成为 key，点它不会把 DSH 踢到后台。
  * 不用 `qlmanage -p` 的原因是它只会开一个固定尺寸、无动画、抢焦点的独立窗口。
  */
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -161,6 +161,18 @@ export function apply(ctx) {
   /** helper 的 stdin；写一行 JSON 就是一条命令。 */
   let input = null
 
+  /** 说清 helper 为什么起不来，别让用户只看到一句 "not available"。 */
+  function helperDiagnosis() {
+    try {
+      const stat = statSync(HELPER_PATH)
+      if (!stat.isFile()) return `helper 不是普通文件：${HELPER_PATH}`
+      if ((stat.mode & 0o111) === 0) return `helper 没有执行权限，执行 chmod +x "${HELPER_PATH}"`
+      return `helper 存在但无法启动（可能是 CPU 架构不符，需要 arm64 / x86_64 的 macOS 12+）：${HELPER_PATH}`
+    } catch {
+      return `helper 缺失：${HELPER_PATH}。重新安装插件即可，或在该目录执行 swiftc -O main.swift -o qlhelper 自行编译`
+    }
+  }
+
   function ensureHelper() {
     if (helper !== null) return helper
     let handle
@@ -177,7 +189,7 @@ export function apply(ctx) {
       })
     } catch (error) {
       // 二进制缺失／没有执行权限：让调用方拿到"不可用"，而不是一个 500。
-      logLine(`spawn failed ${String(error)}`)
+      logLine(`spawn failed ${String(error)} | ${helperDiagnosis()}`)
       return null
     }
     helper = handle
@@ -307,7 +319,7 @@ export function apply(ctx) {
       bounds: rect(body.bounds),
       anchor: rect(body.anchor),
     })
-    if (!shown) return text(503, 'Preview helper is not available.')
+    if (!shown) return text(503, `Preview helper is not available. ${helperDiagnosis()}`)
     return json({ previewing: true, path: absolutePath })
   }
 

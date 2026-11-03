@@ -1,8 +1,8 @@
 .DS_Store
 node_modules/
 
-# helper 的编译产物：源码在，用户自己 swiftc 编译
-helper/qlhelper
+# helper 的编译产物要入库：universal binary（arm64 + x86_64），
+# 用户装完插件就能用，不要求本机有 Swift 工具链
 
 # 说明片的中间产物，本地留着但不入库
 promo/out/
