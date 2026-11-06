@@ -182,7 +182,10 @@ window.__ModuleLoader__.load({
      */
     function focusSoon(found) {
       cancelFocus()
-      if (typingSomewhere(document.activeElement)) return
+      // 焦点本来就在输入框里也要照常转移：用户把鼠标停到卡片/预览上，下一步
+      // 就是想按空格，焦点留在输入框只会把空格打进正文。真正的保护在别处——
+      // 等待期间任何 keydown / beforeinput / input / 焦点变化都会 cancelFocus，
+      // 所以"正在打字"不会被抢，只有"停稳且没在打"才移走焦点。
       const entry = hovered
       const task = { timer: null, fallback: null, active: document.activeElement }
       focusTask = task
@@ -191,7 +194,7 @@ window.__ModuleLoader__.load({
         found.button.isConnected === true && entry.element.isConnected === true &&
         entry.element.contains(found.button) && found.button.disabled !== true &&
         found.button.getAttribute('data-quicklook-url') === entry.url &&
-        document.activeElement === task.active && !typingSomewhere(document.activeElement)
+        document.activeElement === task.active
       task.timer = setTimeout(() => {
         task.timer = null
         if (!valid()) { cancelFocus(); return }

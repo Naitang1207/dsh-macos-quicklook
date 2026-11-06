@@ -111,17 +111,18 @@ test('unfocused window retains the cancellable 120ms system fallback after inter
 })
 
 for (const tag of ['input', 'textarea', 'select', 'contenteditable-child']) {
-  test(`hover preserves existing ${tag} focus and space input`, () => {
+  test(`hover moves ${tag} focus onto the card so space previews`, () => {
     const env = setup({ focused: false }), card = env.card()
     let input = new env.Element(tag, {}, env.document.body)
     if (tag === 'contenteditable-child') {
       const editor = new env.Element('div', { contenteditable: 'true' }, env.document.body)
       input = new env.Element('span', {}, editor)
     }
-    input.focus(); env.hover(card); env.tick(1000)
-    env.document.dispatch('keydown', { target: input, key: ' ', code: 'Space' })
+    input.focus(); env.hover(card); env.tick(499)
     assert.equal(env.document.activeElement, input); assert.equal(card.button.focuses, 0)
-    assert.equal(env.windowFocuses(), 0); assert.deepEqual(env.posts, [])
+    env.tick(1)
+    assert.equal(env.document.activeElement, card.button)
+    assert.equal(card.button.focuses, 1); assert.equal(env.windowFocuses(), 1)
   })
 }
 
@@ -211,4 +212,15 @@ test('same URL on a different card replaces the pending hover target', () => {
   env.hover(first); env.tick(300); env.hover(second); env.tick(200)
   assert.equal(first.button.focuses, 0); assert.equal(second.button.focuses, 0)
   env.tick(300); assert.equal(second.button.focuses, 1)
+})
+
+test('typing in a focused input during the hover delay keeps focus where it is', () => {
+  const env = setup({ focused: false }), card = env.card()
+  const input = new env.Element('textarea', {}, env.document.body)
+  input.focus(); env.hover(card); env.tick(250)
+  env.document.dispatch('keydown', { target: input, key: 'a' })
+  env.tick(1000)
+  assert.equal(env.document.activeElement, input)
+  assert.equal(card.button.focuses, 0)
+  assert.deepEqual(env.posts, [])
 })

@@ -1,6 +1,6 @@
 {
   "name": "@naitang1207/dsh-macos-quicklook",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "在交付卡片上按空格，用 macOS 原生 Quick Look 预览文件",
