@@ -58,40 +58,16 @@ window.__ModuleLoader__.load({
       return { sessionId, seq: Number(seq), index: Number(index) }
     }
 
-    /**
-     * 找到鼠标所在元素所属的那张卡片，以及卡片里的 ␣ 按钮。
-     * 优先认宿主标在卡片根节点上的 `data-presented-file`；认不到就向上找
-     * 第一个"内部只有这一个按钮"的容器（最多 8 层），保证 DSH 换结构时还能用。
-     */
-    function locate(target, point) {
+    /** 只查交付卡片内部；普通聊天区域不扫描子树。无卡片标记时按钮本身仍可用。 */
+    function locate(target) {
       if (target === null || typeof target.closest !== 'function') return null
       const card = target.closest('[data-presented-file]')
       if (card !== null) {
         const button = card.querySelector('[data-quicklook-url]')
         if (button !== null) return { button, card }
       }
-      let node = target
-      let depth = 0
-      while (node !== null && node !== document.body && depth < 4) {
-        if (typeof node.querySelectorAll === 'function') {
-          const buttons = node.querySelectorAll('[data-quicklook-url]')
-          if (buttons.length === 1) {
-            // 回退路径很容易把「整块消息区」误当成卡片（屏幕上只渲染了一张卡时，
-            // 它的祖先也满足"内部只有一个按钮"）。给了鼠标坐标就必须验证真的落在里面，
-            // 否则会预览一个用户根本没指的文件。
-            if (point !== undefined) {
-              const box = node.getBoundingClientRect()
-              const inside =
-                point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom
-              if (!inside) return null
-            }
-            return { button: buttons[0], card: node }
-          }
-        }
-        node = node.parentElement
-        depth += 1
-      }
-      return null
+      const button = target.closest('[data-quicklook-url]')
+      return button === null ? null : { button, card: button }
     }
 
     let focusTask = null
@@ -512,7 +488,7 @@ window.__ModuleLoader__.load({
           // 鼠标在整张卡片上就算"指着这个文件"：卡片的 rect 也从这里取。
           const onOver = (event) => {
             clearOutFrame()
-            const found = locate(event.target, { x: event.clientX, y: event.clientY })
+            const found = locate(event.target)
             if (found === null) return
             // 同一张卡片内部的 mouseover 会连续触发，没必要每次都重算并通知组件。
             const url = found.button.getAttribute('data-quicklook-url')
@@ -525,7 +501,7 @@ window.__ModuleLoader__.load({
           // 双击整张卡片直接预览：默认关，设置里打开才生效。
           const onDoubleClick = (event) => {
             if (settings.clickToPreview !== true) return
-            const found = locate(event.target, { x: event.clientX, y: event.clientY })
+            const found = locate(event.target)
             if (found === null) return
             const url = found.button.getAttribute('data-quicklook-url')
             if (url === null || url === '') return
@@ -549,7 +525,7 @@ window.__ModuleLoader__.load({
               outFrame = requestAnimationFrame(() => {
                 outFrame = null
                 const under = document.elementFromPoint(point.x, point.y)
-                if (under !== null && locate(under, point) !== null) return
+                if (under !== null && locate(under) !== null) return
                 if (hovered !== null) publish(null)
               })
               return

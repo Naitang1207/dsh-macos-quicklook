@@ -164,13 +164,15 @@ dsh plugin remove @naitang1207/dsh-macos-quicklook
 
 ## 调试
 
-两份日志，权限 0600：
+默认关闭成功路径的详细诊断，Host 错误仍尽力记录。需要排查时，让 DSH 启动环境带上 `QL_DEBUG=1`，并重新加载插件及 helper。
 
-- `~/.dsh/logs/quicklook-host.log` —— 每次请求的 body、返回 status、耗时
-- `~/.dsh/logs/quicklook-helper.log` —— 每次 show/swap/hide 的 `visible / key / appActive / hostVisible / hostKey`，以及 1.2s 后的最终状态、`sourceFrame` 与 `cardRect` 的矩形
+两份日志以权限 0600 创建，每份最多 1 MiB，另保留一个 `.1` 备份：
 
-排查「没反应」时先看 host 日志有没有收到请求：只有一条说明卡在前端，两条且第一条没弹出说明
-卡在 helper。手动跑 helper 调试时记得先把插件 disable，否则两个进程会抢同一个系统面板互相关闭。
+- `~/.dsh/logs/quicklook-host.log` —— 错误；调试模式另记请求 body、返回 status、耗时
+- `~/.dsh/logs/quicklook-helper.log` —— 调试模式记录 show/swap/hide 状态、1.2s 后的状态与动画矩形
+
+正常模式不复制请求 body 作诊断，也不安排 helper 的 1.2s 状态采样。排查前先开启调试；日志缺失不能直接证明请求未到达。
+手动跑 helper 调试时先停用插件，避免两个进程同时处理预览。
 
 ## 已知限制
 

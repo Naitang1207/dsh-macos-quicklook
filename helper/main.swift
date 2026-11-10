@@ -1,6 +1,9 @@
 import Cocoa
 import QuickLookUI
 
+private let debugEnabled = ProcessInfo.processInfo.environment["QL_DEBUG"] == "1"
+private let logLimit = 1024 * 1024
+
 // MARK: - 协议
 
 private struct RectPayload: Decodable {
@@ -138,24 +141,40 @@ private final class PreviewController: NSObject, NSApplicationDelegate, QLPrevie
         }
     }
 
-    private func log(_ text: String) {
-        let line = "\(Date().timeIntervalSince1970) \(text)\n"
-        guard let data = line.data(using: .utf8) else { return }
-        let directory = FileManager.default.homeDirectoryForCurrentUser
+    private func log(_ text: @autoclosure () -> String) {
+        guard debugEnabled else { return }
+        let line = "\(Date().timeIntervalSince1970) \(text())\n"
+        guard let encoded = line.data(using: .utf8) else { return }
+        let data = Data(encoded.prefix(logLimit))
+        let manager = FileManager.default
+        let directory = manager.homeDirectoryForCurrentUser
             .appendingPathComponent(".dsh/logs", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let path = directory.appendingPathComponent("quicklook-helper.log").path
-        if let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: path)) {
-            handle.seekToEndOfFile()
-            handle.write(data)
-            try? handle.close()
-        } else {
-            // 首次创建就把权限收到只有本人可读：日志里有会话号与文件路径。
-            FileManager.default.createFile(
-                atPath: path,
-                contents: data,
-                attributes: [.posixPermissions: 0o600]
-            )
+        let file = directory.appendingPathComponent("quicklook-helper.log")
+        let backup = directory.appendingPathComponent("quicklook-helper.log.1")
+        do {
+            try manager.createDirectory(at: directory, withIntermediateDirectories: true)
+            if manager.fileExists(atPath: file.path) {
+                let handle = try FileHandle(forWritingTo: file)
+                defer { try? handle.close() }
+                var size = try handle.seekToEnd()
+                if size > UInt64(logLimit) {
+                    try handle.truncate(atOffset: UInt64(logLimit))
+                    size = UInt64(logLimit)
+                }
+                if size + UInt64(data.count) <= UInt64(logLimit) {
+                    try handle.seek(toOffset: size)
+                    try handle.write(contentsOf: data)
+                    return
+                }
+                if manager.fileExists(atPath: backup.path) {
+                    try manager.removeItem(at: backup)
+                }
+                try manager.moveItem(at: file, to: backup)
+            }
+            // 首次创建就把权限收到只有本人可读：日志里有文件路径。
+            _ = manager.createFile(atPath: file.path, contents: data, attributes: [.posixPermissions: 0o600])
+        } catch {
+            // 诊断失败不能干扰预览，也不能从错误处理里再次抛出。
         }
     }
 
@@ -173,13 +192,14 @@ private final class PreviewController: NSObject, NSApplicationDelegate, QLPrevie
     private func show(path: String, bounds: RectPayload?, anchor: RectPayload?) {
         let nextURL = URL(fileURLWithPath: path)
         let nextAnchor = cardRect(anchor: anchor, bounds: bounds)
-        let debug = ProcessInfo.processInfo.environment["QL_DEBUG"] != nil
-        var t0 = Date()
+        var t0 = debugEnabled ? Date() : nil
         func mark(_ label: String) {
-            guard debug else { return }
+            guard let previous = t0 else { return }
             let now = Date()
-            let line = String(format: "  %@ +%.1fms\n", label, now.timeIntervalSince(t0) * 1000)
-            FileHandle.standardError.write(line.data(using: .utf8)!)
+            let line = String(format: "  %@ +%.1fms\n", label, now.timeIntervalSince(previous) * 1000)
+            if let data = line.data(using: .utf8) {
+                try? FileHandle.standardError.write(contentsOf: data)
+            }
             t0 = now
         }
 
@@ -236,8 +256,11 @@ private final class PreviewController: NSObject, NSApplicationDelegate, QLPrevie
         isShowing = true
         log("show path=\(path) visible=\(panel.isVisible) key=\(panel.isKeyWindow) appActive=\(NSApp.isActive) hostVisible=\(host.isVisible) hostKey=\(host.isKeyWindow)")
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            self.log("after1.2s visible=\(panel.isVisible) key=\(panel.isKeyWindow) appActive=\(NSApp.isActive) hostVisible=\(self.host.isVisible) hostKey=\(self.host.isKeyWindow) items=\(self.numberOfPreviewItems(in: panel))")
+        if debugEnabled {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self, weak panel] in
+                guard let self, let panel else { return }
+                self.log("after1.2s visible=\(panel.isVisible) key=\(panel.isKeyWindow) appActive=\(NSApp.isActive) hostVisible=\(self.host.isVisible) hostKey=\(self.host.isKeyWindow) items=\(self.numberOfPreviewItems(in: panel))")
+            }
         }
     }
 
@@ -385,8 +408,7 @@ private final class PreviewController: NSObject, NSApplicationDelegate, QLPrevie
         if !panel.isVisible {
             isShowing = false
         }
-        let stamp = Date().timeIntervalSince1970
-        log("endPreviewPanelControl \(stamp)")
+        log("endPreviewPanelControl \(Date().timeIntervalSince1970)")
         // 头文件原文：sourceFrameOnScreenForPreviewItem 在「打开和关闭」时都会被调用。
         // 之前这里立刻把 dataSource/delegate 拆掉，关闭时系统就问不到源矩形了，
         // 收回退化成缩向屏幕中心的淡出（打开时却有 10 次调用、是从卡片放大的）。

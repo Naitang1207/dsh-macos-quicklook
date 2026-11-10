@@ -17,7 +17,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-function harness({ available = true } = {}) {
+function harness({ available = true, debug = false } = {}) {
   const routes = new Map();
   const cleanups = [];
   const commands = [];
@@ -25,12 +25,17 @@ function harness({ available = true } = {}) {
   const statWaiters = new Map();
   let spawns = 0;
   let terminations = 0;
+  const logWrites = [];
   const scope = {
+    process: { env: { QL_DEBUG: debug ? '1' : '' } },
+    Buffer,
     Response,
     console,
     homedir: () => '/mock',
     join: path.join,
-    appendFileSync() {},
+    appendFileSync(file, data) { logWrites.push({ file, data: String(data) }); },
+    renameSync() {},
+    truncateSync() {},
     mkdirSync() {},
     readFileSync() { throw new Error('No saved settings'); },
     writeFileSync() {},
@@ -87,6 +92,7 @@ function harness({ available = true } = {}) {
   return {
     fetch,
     commands,
+    logWrites,
     stats,
     get spawns() { return spawns; },
     get terminations() { return terminations; },
@@ -220,10 +226,25 @@ test('unknown action returns 400 before file resolution or send', async () => {
   assert.equal(h.stats.length, 0);
 });
 
+test('default successful requests read the body once and do not write diagnostic logs', async () => {
+  const h = harness();
+  const tracked = delayedRequest({ action: 'focus' }, 'none');
+  assert.equal((await h.fetch(tracked.request)).status, 200);
+  assert.deepEqual(tracked.calls, ['json']);
+  assert.deepEqual(h.logWrites, []);
+});
+
+test('default server failures retain an error log', async () => {
+  const h = harness();
+  const broken = { signal: new AbortController().signal, async json() { return { get action() { throw new Error('broken body'); } }; } };
+  assert.equal((await h.fetch(broken)).status, 500);
+  assert.ok(h.logWrites.some(({ data }) => data.includes('broken body')));
+});
+
 for (const phase of ['clone', 'body']) {
   for (const olderAction of ['toggle', 'hide']) {
     test(`earlier ${olderAction} with slow ${phase} JSON cannot override a newer preview`, async () => {
-      const h = harness();
+      const h = harness({ debug: true });
       const slow = delayedRequest({ ...preview(1), action: olderAction }, phase);
       const older = h.fetch(slow.request);
       await slow.entered;

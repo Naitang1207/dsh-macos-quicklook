@@ -95,6 +95,30 @@ function setup({ focused = true } = {}) {
     windowFocuses: () => windowFocuses, focusPosts: () => posts.filter(post => post.action === 'focus') }
 }
 
+test('ordinary content never scans descendant trees or reads layout', () => {
+  const env = setup()
+  const container = new env.Element('div', {}, env.document.body)
+  const target = new env.Element('span', {}, container)
+  env.card() // A card elsewhere must not turn the message container into a hover target.
+  container.querySelectorAll = () => { throw new Error('ordinary subtree scanned') }
+  target.querySelectorAll = () => { throw new Error('ordinary subtree scanned') }
+  container.getBoundingClientRect = () => { throw new Error('ordinary layout read') }
+  env.document.dispatch('mouseover', { target })
+  env.document.dispatch('mouseout', { target, relatedTarget: target })
+  env.tick(1000)
+  assert.equal(env.timers.size, 0)
+  assert.deepEqual(env.posts, [])
+})
+
+test('unmarked containers support the explicit preview button without scanning siblings', () => {
+  const env = setup(), item = env.card()
+  delete item.root.attrs['data-presented-file']
+  item.root.querySelectorAll = () => { throw new Error('unmarked subtree scanned') }
+  env.document.dispatch('mouseover', { target: item.button })
+  env.tick(500)
+  assert.equal(env.document.activeElement, item.button)
+})
+
 test('normal hover focuses once and synchronous React onFocus does not reschedule', () => {
   const env = setup(), card = env.card()
   env.hover(card); env.tick(499); assert.equal(card.button.focuses, 0)

@@ -9,7 +9,7 @@
  * 出现动画都由我们控制；窗口是 nonactivating 且不能成为 key，点它不会把 DSH 踢到后台。
  * 不用 `qlmanage -p` 的原因是它只会开一个固定尺寸、无动画、抢焦点的独立窗口。
  */
-import { appendFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, renameSync, statSync, truncateSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -84,6 +84,9 @@ async function handleSettings(request) {
 const HELPER_PATH = fileURLToPath(new URL('./helper/qlhelper', import.meta.url))
 /** 预览进程的输出留一点用于排错。 */
 const OUTPUT_LIMIT = 64 * 1024
+/** 详细诊断只在明确启用时记录；错误日志始终尽力保留。 */
+const DEBUG = process.env.QL_DEBUG === '1'
+const LOG_LIMIT = 1024 * 1024
 /** 收到 terminate 后的强杀宽限。 */
 const GRACE_MS = 3000
 const NUMERIC = /^\d+$/
@@ -193,7 +196,7 @@ export function apply(ctx) {
       })
     } catch (error) {
       // 二进制缺失／没有执行权限：让调用方拿到"不可用"，而不是一个 500。
-      logLine(`spawn failed ${String(error)} | ${helperDiagnosis()}`)
+      logLine(`spawn failed ${String(error)} | ${helperDiagnosis()}`, true)
       return null
     }
     helper = handle
@@ -242,11 +245,26 @@ export function apply(ctx) {
     }
   }
 
-  function logLine(text) {
+  function logLine(text, error = false) {
+    if (!DEBUG && !error) return
     try {
       const dir = join(homedir(), '.dsh', 'logs')
+      const path = join(dir, 'quicklook-host.log')
+      const data = Buffer.from(`${Date.now()} ${text}\n`).subarray(0, LOG_LIMIT)
       mkdirSync(dir, { recursive: true })
-      appendFileSync(join(dir, 'quicklook-host.log'), `${Date.now()} ${text}\n`, { mode: 0o600 })
+      let size = 0
+      try {
+        size = statSync(path).size
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error
+      }
+      // 单条超长日志也截断，当前文件与唯一备份都不超过上限。
+      if (size > LOG_LIMIT) {
+        truncateSync(path, LOG_LIMIT)
+        size = LOG_LIMIT
+      }
+      if (size + data.length > LOG_LIMIT) renameSync(path, `${path}.1`)
+      appendFileSync(path, data, { mode: 0o600 })
     } catch {
       /* 日志失败不影响功能 */
     }
@@ -254,24 +272,28 @@ export function apply(ctx) {
 
   async function handlePreview(request) {
     const sequence = ++requestSequence
-    const started = Date.now()
-    let seen = null
-    try {
-      seen = await request.clone().json()
-    } catch {
-      seen = null
+    const started = DEBUG ? Date.now() : 0
+    if (DEBUG) {
+      let seen = null
+      try {
+        seen = await request.clone().json()
+      } catch {
+        seen = null
+      }
+      logLine(`in ${JSON.stringify(seen)}`)
     }
-    logLine(`in ${JSON.stringify(seen)}`)
     let response
     try {
       response = await handlePreviewInner(request, sequence)
     } catch (error) {
       // 任何没预期的异常都要落成响应，否则日志里只剩半截、排查时看不见这条请求。
       if (request.signal.aborted) return text(499, 'Cancelled.')
-      logLine(`fail ${String(error)}`)
+      logLine(`fail ${String(error)}`, true)
       response = text(500, 'Preview failed.')
     }
-    logLine(`out status=${response.status} ms=${Date.now() - started}`)
+    if (DEBUG || response.status >= 500) {
+      logLine(`out status=${response.status}${DEBUG ? ` ms=${Date.now() - started}` : ''}`, response.status >= 500)
+    }
     return response
   }
 
